@@ -23,15 +23,16 @@ func Routes() *chi.Mux {
 func GetBookingsTodayForRestaurant(res http.ResponseWriter, req *http.Request) {
     id := chi.URLParam(req, "id")
     var reservation Reservation
+    req.Header.Set("Connection", "close")
     queryString := "SELECT bookings_today from restaurants WHERE id=$1"
     row := conn.QueryRow(queryString, id)
-    switch err := row.Scan(&reservation.BookingsToday); err {
-        case nil:
-            render.JSON(res, req, reservation)
-        default:
-            panic(err)
-            render.Render(res, req, ErrRender(err))
+    err := row.Scan(&reservation.BookingsToday)
+    req.Close = true
+    if err != nil {
+        render.JSON(res, req, ErrInvalidRequest(err))
+        return
     }
+    render.JSON(res, req, reservation)
 }
 
 type ErrResponse struct {
@@ -65,4 +66,3 @@ func ErrRender(err error) render.Renderer {
 		ErrorText:      err.Error(),
 	}
 }
-
